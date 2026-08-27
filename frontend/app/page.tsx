@@ -50,7 +50,7 @@ function TradeCard({ trade }: { trade: TradeOffer }) {
     <article className="flex flex-col gap-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">Seller</p>
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-300">Seller</p>
           <p className="font-semibold text-gray-900 truncate max-w-[160px] dark:text-gray-100">
             {sellerAlias}
           </p>
@@ -59,7 +59,7 @@ function TradeCard({ trade }: { trade: TradeOffer }) {
       </div>
 
       <div className="flex flex-col gap-0.5">
-        <p className="text-xs uppercase tracking-widest text-gray-400 font-medium dark:text-gray-500">
+        <p className="text-xs uppercase tracking-widest text-gray-500 font-medium dark:text-gray-400">
           Amount
         </p>
         <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -67,7 +67,7 @@ function TradeCard({ trade }: { trade: TradeOffer }) {
         </p>
       </div>
 
-      <p className="text-xs text-gray-400 dark:text-gray-500">
+      <p className="text-xs text-gray-500 dark:text-gray-400">
         Expires{" "}
         {new Date(trade.expires_at).toLocaleDateString("en-NG", {
           day: "numeric",
@@ -96,7 +96,7 @@ function EmptyState() {
       <h2 className="text-xl font-semibold text-gray-700 dark:text-gray-200">
         No active listings right now
       </h2>
-      <p className="max-w-sm text-sm text-gray-500 dark:text-gray-400">
+      <p className="max-w-sm text-sm text-gray-500 dark:text-gray-300">
         Be the first to list your airtime or data. Sellers get paid instantly once
         delivery is confirmed on-chain.
       </p>
@@ -115,9 +115,8 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <main>
-        {/* Hero */}
-        <section className="bg-white border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+      {/* Hero */}
+      <section className="bg-white border-b border-gray-100 dark:bg-gray-800 dark:border-gray-700">
           <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
             <div className="max-w-2xl">
               <p className="mb-3 inline-block rounded-full bg-violet-100 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-violet-700 dark:bg-violet-900/40 dark:text-violet-300">
@@ -165,7 +164,7 @@ export default async function HomePage() {
                 Active Listings
               </h2>
               {pagination.total > 0 && (
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">
                   {pagination.total} offer{pagination.total !== 1 ? "s" : ""} available
                 </p>
               )}
@@ -181,19 +180,18 @@ export default async function HomePage() {
           </div>
 
           {pagination.totalPages > 1 && (
-            <p className="mt-10 text-center text-sm text-gray-400 dark:text-gray-500">
+            <p className="mt-10 text-center text-sm text-gray-500 dark:text-gray-400">
               Showing page 1 of {pagination.totalPages}. Sign in to filter and paginate listings.
             </p>
           )}
         </section>
-      </main>
 
       <footer className="border-t border-gray-100 bg-white dark:border-gray-700 dark:bg-gray-800">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-sm text-gray-400 dark:text-gray-500">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
             &copy; {new Date().getFullYear()} AirFlex. Open source under the MIT License.
           </p>
-          <div className="flex gap-5 text-sm text-gray-400 dark:text-gray-500">
+          <div className="flex gap-5 text-sm text-gray-500 dark:text-gray-400">
             <a href="/docs" className="hover:text-gray-600 transition-colors dark:hover:text-gray-300">
               Docs
             </a>

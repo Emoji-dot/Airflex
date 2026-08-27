@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Navbar from "../components/Navbar";
 import { AuthProvider } from "./context/AuthContext";
+import AxeDevTools from "./components/AxeDevTools";
+import { AnnouncementProvider } from "./components/AnnouncementRegions";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -25,10 +27,22 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="bg-gray-50 text-gray-900 antialiased dark:bg-gray-900 dark:text-gray-100">
-        <AuthProvider>
-          <Navbar />
-          {children}
-        </AuthProvider>
+        {/* Skip to main content link for keyboard users */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 z-50 rounded bg-violet-600 px-4 py-2 text-sm font-medium text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2"
+        >
+          Skip to main content
+        </a>
+        <AnnouncementProvider>
+          <AuthProvider>
+            <Navbar />
+            <main id="main-content">
+              {children}
+            </main>
+            <AxeDevTools />
+          </AuthProvider>
+        </AnnouncementProvider>
       </body>
     </html>
   );

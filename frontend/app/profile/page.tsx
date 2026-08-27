@@ -103,6 +103,7 @@ function StatusBadge({ status }: { status: TradeStatus }) {
     Locked:    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     Completed: "bg-blue-100  text-blue-700  dark:bg-blue-900/40  dark:text-blue-300",
     Cancelled: "bg-gray-100  text-gray-500  dark:bg-gray-700     dark:text-gray-400",
+    Disputed:  "bg-red-100   text-red-700   dark:bg-red-900/40   dark:text-red-300",
   };
 
   // Display "Disputed" in the UI for Locked trades to match filter label
@@ -133,7 +134,7 @@ function StatCard({
     <div className="flex flex-col gap-1 rounded-2xl border border-gray-100 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
       <span aria-hidden="true" className="text-2xl">{icon}</span>
       <p className="mt-1 text-2xl font-extrabold text-gray-900 dark:text-gray-100">{value}</p>
-      <p className="text-xs font-medium text-gray-500 dark:text-gray-400">{label}</p>
+      <p className="text-xs font-medium text-gray-500 dark:text-gray-300">{label}</p>
     </div>
   );
 }
@@ -226,7 +227,7 @@ function TradeRow({
   return (
     <tr className="group border-b border-gray-50 transition-colors hover:bg-gray-50/60 dark:border-gray-700/60 dark:hover:bg-gray-700/30">
       {/* Date */}
-      <td className="py-3.5 pl-5 pr-4 text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
+      <td className="py-3.5 pl-5 pr-4 text-sm text-gray-500 dark:text-gray-300 whitespace-nowrap">
         {formatDate(trade.created_at)}
       </td>
 
@@ -254,7 +255,7 @@ function TradeRow({
       </td>
 
       {/* Counterparty */}
-      <td className="px-4 py-3.5 text-sm text-gray-500 dark:text-gray-400 font-mono">
+      <td className="px-4 py-3.5 text-sm text-gray-500 dark:text-gray-300 font-mono">
         {counterparty}
       </td>
 

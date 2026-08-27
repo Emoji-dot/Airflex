@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { getToken, isAuthenticated } from "../lib/auth";
 import WithdrawModal from "./WithdrawModal";
+import { useAnnouncement } from "../components/AnnouncementRegions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -29,6 +30,7 @@ interface WalletResponse {
 
 export default function WalletPage() {
   const apiUrl = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001";
+  const { announceError, announceStatus } = useAnnouncement();
 
   const [authChecked, setAuthChecked] = useState(false);
   const [wallet, setWallet] = useState<WalletData | null>(null);
@@ -61,7 +63,9 @@ export default function WalletPage() {
       .then((r) => r.json() as Promise<WalletResponse>)
       .then((data) => {
         if (data.error || !data.publicKey) {
-          setError(data.error ?? "Failed to load wallet.");
+          const errorMsg = data.error ?? "Failed to load wallet.";
+          setError(errorMsg);
+          announceError(errorMsg);
         } else {
           setWallet({
             publicKey: data.publicKey,
@@ -69,9 +73,14 @@ export default function WalletPage() {
             asset: data.asset ?? "XLM",
             network: data.network ?? "testnet",
           });
+          announceStatus(`Wallet loaded. Balance: ${data.balance ?? "0"} ${data.asset ?? "XLM"}`);
         }
       })
-      .catch(() => setError("Network error. Check your connection."))
+      .catch(() => {
+        const errorMsg = "Network error. Check your connection.";
+        setError(errorMsg);
+        announceError(errorMsg);
+      })
       .finally(() => setLoading(false));
   }, [authChecked, apiUrl]);
 
@@ -93,9 +102,14 @@ export default function WalletPage() {
             asset: data.asset ?? "XLM",
             network: data.network ?? "testnet",
           });
+          announceStatus(`Balance refreshed: ${data.balance ?? "0"} ${data.asset ?? "XLM"}`);
         }
       })
-      .catch(() => setError("Failed to refresh balance"))
+      .catch(() => {
+        const errorMsg = "Failed to refresh balance";
+        setError(errorMsg);
+        announceError(errorMsg);
+      })
       .finally(() => setLoading(false));
   }
 
@@ -107,6 +121,7 @@ export default function WalletPage() {
           viewBox="0 0 24 24"
           fill="none"
           aria-label="Loading"
+          role="img"
         >
           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
@@ -141,7 +156,7 @@ export default function WalletPage() {
       {wallet && (
         <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           <div className="mb-6 flex flex-col gap-1">
-            <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+            <p className="text-sm font-medium text-gray-500 dark:text-gray-300">
               Available Balance
             </p>
             <p className="text-4xl font-extrabold text-gray-900 dark:text-gray-100">
@@ -150,7 +165,7 @@ export default function WalletPage() {
           </div>
 
           <div className="mb-6 flex flex-col gap-2 rounded-xl bg-gray-50 p-4 dark:bg-gray-700">
-            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
+            <p className="text-xs font-medium text-gray-500 dark:text-gray-300">
               Stellar Public Key
             </p>
             <p className="break-all font-mono text-xs text-gray-700 dark:text-gray-300">

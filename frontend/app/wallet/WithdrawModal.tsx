@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { getToken } from "../lib/auth";
+import { useAnnouncement } from "../components/AnnouncementRegions";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,6 +41,7 @@ export default function WithdrawModal({
   onWithdrawSuccess,
 }: WithdrawModalProps) {
   const apiUrl = process.env["NEXT_PUBLIC_API_URL"] ?? "http://localhost:3001";
+  const { announceError, announceSuccess, announceStatus } = useAnnouncement();
 
   // Form state
   const [amount, setAmount] = useState("");
@@ -89,6 +91,61 @@ export default function WithdrawModal({
     }
   }, [selectedBank, accountNumber]);
 
+  // Handle modal focus management and keyboard events
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+
+    // Focus trap
+    const modal = document.querySelector('[role="dialog"]') as HTMLElement;
+    const getFocusableElements = () => modal?.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    );
+    
+    // Set initial focus
+    setTimeout(() => {
+      const focusableElements = getFocusableElements();
+      if (focusableElements && focusableElements.length > 0) {
+        (focusableElements[0] as HTMLElement).focus();
+      }
+    }, 100);
+
+    const handleTabKey = (e: KeyboardEvent) => {
+      if (e.key === 'Tab') {
+        const focusableElements = getFocusableElements();
+        if (!focusableElements || focusableElements.length === 0) return;
+        
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+        
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleTabKey);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleTabKey);
+    };
+  }, [isOpen, onClose]);
+
   async function resolveAccount() {
     if (!selectedBank || accountNumber.length !== 10) return;
 
@@ -109,8 +166,11 @@ export default function WithdrawModal({
 
       if (data.account_name) {
         setAccountName(data.account_name);
+        announceStatus(`Account resolved: ${data.account_name}`);
       } else {
-        setError(data.error || "Failed to resolve account name");
+        const errorMsg = data.error || "Failed to resolve account name";
+        setError(errorMsg);
+        announceError(errorMsg);
       }
     } catch (err) {
       setError("Network error. Please try again.");
@@ -123,19 +183,25 @@ export default function WithdrawModal({
     e.preventDefault();
 
     if (!accountConfirmed) {
-      setError("Please confirm the account name before proceeding.");
+      const errorMsg = "Please confirm the account name before proceeding.";
+      setError(errorMsg);
+      announceError(errorMsg);
       return;
     }
 
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
-      setError("Please enter a valid amount.");
+      const errorMsg = "Please enter a valid amount.";
+      setError(errorMsg);
+      announceError(errorMsg);
       return;
     }
 
     const currentBalanceNum = parseFloat(currentBalance);
     if (amountNum > currentBalanceNum) {
-      setError("Insufficient balance.");
+      const errorMsg = "Insufficient balance.";
+      setError(errorMsg);
+      announceError(errorMsg);
       return;
     }
 
@@ -162,16 +228,22 @@ export default function WithdrawModal({
       const data = (await res.json()) as WithdrawResponse;
 
       if (data.success) {
-        setSuccessMessage("Withdrawal request submitted successfully!");
+        const successMsg = "Withdrawal request submitted successfully!";
+        setSuccessMessage(successMsg);
+        announceSuccess(successMsg);
         setTimeout(() => {
           onWithdrawSuccess();
           handleClose();
         }, 2000);
       } else {
-        setError(data.error || "Failed to submit withdrawal request");
+        const errorMsg = data.error || "Failed to submit withdrawal request";
+        setError(errorMsg);
+        announceError(errorMsg);
       }
     } catch (err) {
-      setError("Network error. Please try again.");
+      const errorMsg = "Network error. Please try again.";
+      setError(errorMsg);
+      announceError(errorMsg);
     } finally {
       setIsSubmitting(false);
     }
@@ -213,7 +285,7 @@ export default function WithdrawModal({
           <button
             type="button"
             onClick={handleClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+            className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300"
             aria-label="Close modal"
           >
             <svg
@@ -235,7 +307,7 @@ export default function WithdrawModal({
 
         {/* Current balance display */}
         <div className="mb-6 rounded-xl bg-gray-50 p-4 dark:bg-gray-700">
-          <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+          <p className="text-sm font-medium text-gray-500 dark:text-gray-300">
             Available Balance
           </p>
           <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -304,8 +376,25 @@ export default function WithdrawModal({
                   setShowBankDropdown(true);
                 }}
                 onFocus={() => setShowBankDropdown(true)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') {
+                    setShowBankDropdown(false);
+                  } else if (e.key === 'ArrowDown' && filteredBanks.length > 0) {
+                    e.preventDefault();
+                    setShowBankDropdown(true);
+                    // Focus first option
+                    setTimeout(() => {
+                      const firstOption = document.querySelector('[role="option"]') as HTMLElement;
+                      firstOption?.focus();
+                    }, 0);
+                  }
+                }}
                 placeholder="Search bank..."
                 required
+                role="combobox"
+                aria-expanded={showBankDropdown}
+                aria-haspopup="listbox"
+                aria-autocomplete="list"
                 className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
               />
               {selectedBank && (
@@ -315,7 +404,7 @@ export default function WithdrawModal({
                     setSelectedBank(null);
                     setBankSearch("");
                   }}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-600 dark:hover:text-gray-300"
                   aria-label="Clear bank selection"
                 >
                   <svg
@@ -323,6 +412,7 @@ export default function WithdrawModal({
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
+                    aria-hidden="true"
                   >
                     <path
                       strokeLinecap="round"
@@ -337,17 +427,45 @@ export default function WithdrawModal({
 
             {/* Bank dropdown */}
             {showBankDropdown && filteredBanks.length > 0 && (
-              <div className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700">
+              <div 
+                role="listbox" 
+                aria-label="Bank selection"
+                className="absolute z-10 mt-1 max-h-60 w-full overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-700"
+              >
                 {filteredBanks.map((bank) => (
                   <button
                     key={bank.code}
                     type="button"
+                    role="option"
                     onClick={() => {
                       setSelectedBank(bank);
                       setBankSearch(bank.name);
                       setShowBankDropdown(false);
                     }}
-                    className="w-full px-4 py-2.5 text-left text-sm text-gray-900 hover:bg-gray-50 dark:text-gray-100 dark:hover:bg-gray-600"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedBank(bank);
+                        setBankSearch(bank.name);
+                        setShowBankDropdown(false);
+                      } else if (e.key === 'Escape') {
+                        setShowBankDropdown(false);
+                        document.getElementById('bank')?.focus();
+                      } else if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextOption = e.currentTarget.nextElementSibling as HTMLElement;
+                        nextOption?.focus();
+                      } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevOption = e.currentTarget.previousElementSibling as HTMLElement;
+                        if (prevOption) {
+                          prevOption.focus();
+                        } else {
+                          document.getElementById('bank')?.focus();
+                        }
+                      }
+                    }}
+                    className="w-full px-4 py-2.5 text-left text-sm text-gray-900 hover:bg-gray-50 focus:bg-gray-100 focus:outline-none dark:text-gray-100 dark:hover:bg-gray-600 dark:focus:bg-gray-600"
                   >
                     {bank.name}
                   </button>
@@ -378,7 +496,7 @@ export default function WithdrawModal({
               className="w-full rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 dark:placeholder:text-gray-500"
             />
             {isResolving && (
-              <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <p className="mt-1.5 text-xs text-gray-500 dark:text-gray-300">
                 Resolving account name...
               </p>
             )}
@@ -396,11 +514,12 @@ export default function WithdrawModal({
               <label className="mt-3 flex items-start gap-2">
                 <input
                   type="checkbox"
+                  id="account-confirmation"
                   checked={accountConfirmed}
                   onChange={(e) => setAccountConfirmed(e.target.checked)}
                   className="mt-0.5 h-4 w-4 rounded border-gray-300 text-violet-600 focus:ring-violet-500"
                 />
-                <span className="text-sm text-gray-600 dark:text-gray-400">
+                <span className="text-sm text-gray-600 dark:text-gray-300">
                   I confirm this is the correct account name
                 </span>
               </label>
@@ -425,6 +544,7 @@ export default function WithdrawModal({
                   className="h-4 w-4 animate-spin"
                   fill="none"
                   viewBox="0 0 24 24"
+                  aria-hidden="true"
                 >
                   <circle
                     className="opacity-25"

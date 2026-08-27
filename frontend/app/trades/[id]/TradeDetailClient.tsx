@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import type { TradeOffer } from "../../../../server/src/types/trade";
 import { getToken, getUser, isAuthenticated } from "../../lib/auth";
+import { useAnnouncement } from "../../components/AnnouncementRegions";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,6 +37,7 @@ function StatusBadge({ status }: { status: TradeOffer["status"] }) {
     Locked:    "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
     Completed: "bg-blue-100  text-blue-700  dark:bg-blue-900/40  dark:text-blue-300",
     Cancelled: "bg-gray-100  text-gray-500  dark:bg-gray-700     dark:text-gray-400",
+    Disputed:  "bg-red-100   text-red-700   dark:bg-red-900/40   dark:text-red-300",
   };
   return (
     <span
@@ -72,7 +74,7 @@ function Spinner({ label = "Loading…" }: { label?: string }) {
 function DetailRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 px-5 py-3.5">
-      <dt className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">{label}</dt>
+      <dt className="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-300">{label}</dt>
       <dd className="text-right text-sm font-semibold text-gray-900 dark:text-gray-100">{children}</dd>
     </div>
   );
@@ -144,7 +146,7 @@ function ConfirmationPanel({ trade, txHash }: { trade: TradeOffer; txHash: strin
       <div className="flex flex-col items-center gap-3 text-center">
         <span aria-hidden="true" className="text-5xl">✅</span>
         <h2 className="text-2xl font-extrabold text-gray-900 dark:text-gray-100">Purchase confirmed!</h2>
-        <p className="text-sm text-gray-600 dark:text-gray-400">
+        <p className="text-sm text-gray-600 dark:text-gray-300">
           Your funds have been locked in escrow. The seller will deliver your{" "}
           {formatAssetType(trade.asset_type)} shortly.
         </p>
@@ -191,6 +193,7 @@ interface Props {
 
 export default function TradeDetailClient({ trade }: Props) {
   const countdown = useCountdown(trade.expires_at);
+  const { announceError, announceSuccess } = useAnnouncement();
 
   const [authed, setAuthed]               = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -244,14 +247,19 @@ export default function TradeDetailClient({ trade }: Props) {
       }
 
       if (!res.ok) {
-        setBuyError(data.error ?? "Purchase failed. Please try again.");
+        const errorMsg = data.error ?? "Purchase failed. Please try again.";
+        setBuyError(errorMsg);
+        announceError(errorMsg);
         return;
       }
 
       setTxHash(data.data?.escrow_tx_hash ?? "");
       setConfirmed(true);
+      announceSuccess(`Purchase confirmed! Your ${formatAssetType(trade.asset_type)} order has been placed.`);
     } catch {
-      setBuyError("Network error. Check your connection and try again.");
+      const errorMsg = "Network error. Check your connection and try again.";
+      setBuyError(errorMsg);
+      announceError(errorMsg);
     } finally {
       setBuying(false);
     }
@@ -274,7 +282,7 @@ export default function TradeDetailClient({ trade }: Props) {
         >
           {formatAssetType(trade.asset_type)}
         </h1>
-        <p className="mt-1 font-mono text-xs text-gray-400 dark:text-gray-500 break-all">
+        <p className="mt-1 font-mono text-xs text-gray-500 dark:text-gray-400 break-all">
           ID: {trade.id}
         </p>
       </div>
@@ -399,7 +407,7 @@ export default function TradeDetailClient({ trade }: Props) {
         {isSeller && (
           <p
             role="note"
-            className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-3 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400"
+            className="rounded-xl border border-gray-200 bg-gray-50 px-5 py-3 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300"
           >
             This is your listing.
           </p>
