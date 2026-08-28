@@ -236,6 +236,8 @@ function DetailRow({ label, children }: { label: string; children: React.ReactNo
 export default function SellPage() {
   const [authChecked, setAuthChecked] = useState(false);
   const { announceError, announceSuccess } = useAnnouncement();
+  const [kycStatus, setKycStatus] = useState<string>("unverified");
+  const [kycLoading, setKycLoading] = useState(true);
   const [fields, setFields] = useState<FormFields>({
     assetType: "",
     amount: "",
@@ -255,7 +257,20 @@ export default function SellPage() {
       return;
     }
     setAuthChecked(true);
-  }, []);
+
+    const token = getToken();
+    if (!token) return;
+
+    fetch(`${apiUrl}/api/v1/profile`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json() as Promise<{ data?: { kycStatus?: string } }>)
+      .then((data) => {
+        setKycStatus(data.data?.kycStatus ?? "unverified");
+      })
+      .catch(() => setKycStatus("unverified"))
+      .finally(() => setKycLoading(false));
+  }, [apiUrl]);
 
   function handleChange(e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) {
     const { name, value } = e.target;
@@ -272,6 +287,11 @@ export default function SellPage() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setServerError(null);
+
+    if (kycStatus !== "verified") {
+      setServerError("Complete KYC verification before creating a listing.");
+      return;
+    }
 
     const fieldErrors = validate(fields);
     if (Object.keys(fieldErrors).length > 0) {
@@ -343,13 +363,15 @@ export default function SellPage() {
     }
   }
 
-  if (!authChecked) {
+  if (!authChecked || kycLoading) {
     return (
       <div className="flex items-center justify-center py-32" aria-label="Checking authentication">
         <Spinner />
       </div>
     );
   }
+
+  const kycBlocked = kycStatus !== "verified";
 
   if (createdTrade) {
     return <SuccessPanel trade={createdTrade} />;
@@ -370,6 +392,28 @@ export default function SellPage() {
           Stellar escrow contract and visible to buyers immediately.
         </p>
       </div>
+
+      {/* KYC gate */}
+      {kycBlocked && (
+        <div
+          role="alert"
+          className="mb-8 rounded-xl border border-amber-200 bg-amber-50 px-5 py-4 dark:border-amber-800/60 dark:bg-amber-950/30"
+        >
+          <p className="text-sm font-semibold text-amber-800 dark:text-amber-300">
+            {kycStatus === "pending"
+              ? "KYC Pending Review — listing creation is disabled until your verification is approved."
+              : "Seller verification required — complete KYC before creating a listing."}
+          </p>
+          {kycStatus !== "pending" && (
+            <a
+              href="/kyc"
+              className="mt-2 inline-block text-sm font-semibold text-violet-600 hover:text-violet-700 dark:text-violet-400"
+            >
+              Complete KYC verification →
+            </a>
+          )}
+        </div>
+      )}
 
       {/* How it works */}
       <div className="mb-8 flex flex-col gap-2 rounded-xl border border-violet-100 bg-violet-50 px-5 py-4 dark:border-violet-800 dark:bg-violet-900/20">
@@ -402,8 +446,8 @@ export default function SellPage() {
             name="assetType"
             value={fields.assetType}
             onChange={handleChange}
-            disabled={loading}
-            aria-describedby={`assetType-hint${errors.assetType ? ' assetType-error' : ''}`}
+            disabled={loading || kycBlocked}
+            aria-describedby={errors.assetType ? "assetType-error" : undefined}
             aria-invalid={errors.assetType ? "true" : undefined}
             className={`${inputBase} ${errors.assetType ? inputError : inputNormal} appearance-none bg-[url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")] bg-no-repeat bg-[right_1rem_center]`}
           >
@@ -438,8 +482,8 @@ export default function SellPage() {
               placeholder="500"
               value={fields.amount}
               onChange={handleChange}
-              disabled={loading}
-              aria-describedby={`amount-hint${errors.amount ? ' amount-error' : ''}`}
+              disabled={loading || kycBlocked}
+              aria-describedby={errors.amount ? "amount-error" : undefined}
               aria-invalid={errors.amount ? "true" : undefined}
               className={`${inputBase} pl-8 ${errors.amount ? inputError : inputNormal}`}
             />
@@ -453,37 +497,29 @@ export default function SellPage() {
           hint="How long your listing stays active. Buyers can only purchase before this expires."
           error={errors.expiresInHours}
         >
-          <fieldset>
-            <legend className="sr-only">Select listing duration</legend>
-            <div 
-              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-              role="radiogroup"
-              aria-labelledby="expiresInHours-label"
-            >
-              {EXPIRY_OPTIONS.map((opt) => (
-                <label
-                  key={opt.value}
-                  className={`flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
-                    fields.expiresInHours === opt.value
-                      ? "border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-500"
-                      : "border-gray-200 bg-white text-gray-600 hover:border-violet-300 hover:text-violet-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-violet-500 dark:hover:text-violet-400"
-                  } ${loading ? "cursor-not-allowed opacity-50" : ""}`}
-                >
-                  <input
-                    type="radio"
-                    name="expiresInHours"
-                    value={opt.value}
-                    checked={fields.expiresInHours === opt.value}
-                    onChange={handleChange}
-                    disabled={loading}
-                    className="sr-only"
-                    aria-describedby={errors.expiresInHours ? "expiresInHours-error" : undefined}
-                  />
-                  {opt.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {EXPIRY_OPTIONS.map((opt) => (
+              <label
+                key={opt.value}
+                className={`flex cursor-pointer items-center justify-center rounded-xl border px-3 py-2.5 text-sm font-medium transition-colors ${
+                  fields.expiresInHours === opt.value
+                    ? "border-violet-500 bg-violet-50 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 dark:border-violet-500"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-violet-300 hover:text-violet-600 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-400 dark:hover:border-violet-500 dark:hover:text-violet-400"
+                } ${loading || kycBlocked ? "cursor-not-allowed opacity-50" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="expiresInHours"
+                  value={opt.value}
+                  checked={fields.expiresInHours === opt.value}
+                  onChange={handleChange}
+                  disabled={loading || kycBlocked}
+                  className="sr-only"
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
         </Field>
 
         <hr className="border-gray-100 dark:border-gray-700" />
@@ -526,7 +562,7 @@ export default function SellPage() {
         {/* Submit */}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || kycBlocked}
           className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white transition-colors hover:bg-violet-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-violet-300 dark:focus-visible:ring-offset-gray-800 dark:disabled:bg-violet-800"
         >
           {loading ? (

@@ -1,71 +1,47 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig, devices } from "@playwright/test";
 
 /**
- * @see https://playwright.dev/docs/test-configuration
+ * Playwright configuration for the AirFlex frontend (Issue #30).
+ *
+ * Every spec runs against mocked API responses via `page.route` intercepts —
+ * no live server, no blockchain. That keeps the suite deterministic in CI and
+ * means a failure points at the frontend rather than at whatever the backend
+ * happened to be doing.
  */
 export default defineConfig({
-  testDir: './tests',
-  /* Run tests in files in parallel */
+  testDir: "./e2e",
   fullyParallel: true,
-  /* Fail the build on CI if you accidentally left test.only in the source code. */
-  forbidOnly: !!process.env.CI,
-  /* Retry on CI only */
-  retries: process.env.CI ? 2 : 0,
-  /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
-  /* Reporter to use. See https://playwright.dev/docs/test-reporters */
-  reporter: 'html',
-  /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
-  use: {
-    /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'http://localhost:3000',
+  forbidOnly: !!process.env["CI"],
+  retries: process.env["CI"] ? 2 : 0,
+  workers: process.env["CI"] ? 1 : undefined,
+  reporter: process.env["CI"] ? [["github"], ["html", { open: "never" }]] : [["list"]],
 
-    /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
-    trace: 'on-first-retry',
+  use: {
+    baseURL: process.env["PLAYWRIGHT_BASE_URL"] ?? "http://localhost:3000",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
 
-  /* Configure projects for major browsers */
   projects: [
-    {
-      name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
-    },
-
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-
-    /* Test against mobile viewports. */
-    // {
-    //   name: 'Mobile Chrome',
-    //   use: { ...devices['Pixel 5'] },
-    // },
-    // {
-    //   name: 'Mobile Safari',
-    //   use: { ...devices['iPhone 12'] },
-    // },
-
-    /* Test against branded browsers. */
-    // {
-    //   name: 'Microsoft Edge',
-    //   use: { ...devices['Desktop Edge'], channel: 'msedge' },
-    // },
-    // {
-    //   name: 'Google Chrome',
-    //   use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-    // },
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
   ],
 
-  /* Run your local dev server before starting the tests */
-  webServer: {
-    command: 'npm run dev',
-    url: 'http://localhost:3000',
-    reuseExistingServer: !process.env.CI,
-  },
+  // Two servers: the app, and a stub API for it to talk to. Server Components
+  // fetch from Node, where browser-level route intercepts cannot reach them, so
+  // SSR pages need a real endpoint. Client-side calls are still intercepted
+  // per-test, which is where per-test control belongs.
+  webServer: [
+    {
+      command: "node e2e/support/mock-api.mjs",
+      url: "http://localhost:3001/health",
+      reuseExistingServer: !process.env["CI"],
+      timeout: 30_000,
+    },
+    {
+      command: "pnpm dev",
+      url: "http://localhost:3000",
+      reuseExistingServer: !process.env["CI"],
+      timeout: 120_000,
+    },
+  ],
 });
