@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import Navbar from "../components/Navbar";
+import ServiceWorkerRegister from "../components/ServiceWorkerRegister";
 import { AuthProvider } from "./context/AuthContext";
 import AxeDevTools from "./components/AxeDevTools";
 import { AnnouncementProvider } from "./components/AnnouncementRegions";
